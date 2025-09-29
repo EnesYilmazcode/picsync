@@ -1,6 +1,10 @@
 {
+  "functions": {
+    "source": "functions"
+  },
   "hosting": {
     "public": "public",
+    "site": "picsync",
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -8,9 +12,23 @@
     ],
     "rewrites": [
       {
+        "source": "/api/process-image",
+        "function": "parseImage"
+      },
+      {
+        "source": "/api/process-clipboard",
+        "function": "visionOcr"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
     ]
+  }
+  ,
+  "emulators": {
+    "functions": { "port": 5001 },
+    "hosting": { "port": 5000 },
+    "ui": { "enabled": true }
   }
 }

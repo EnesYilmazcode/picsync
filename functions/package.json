@@ -1,0 +1,22 @@
+{
+  "name": "picsync-functions",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": "18"
+  },
+  "main": "index.js",
+  "scripts": {
+    "lint": "echo 'no lint'",
+    "build": "echo 'no build'",
+    "start": "echo 'use firebase emulators:start'"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^5.0.1",
+    "@google/generative-ai": "^0.17.2",
+    "@google-cloud/vision": "^4.3.2",
+    "busboy": "^1.6.0"
+  }
+}
+

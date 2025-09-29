@@ -363,7 +363,6 @@
             const formData = new FormData();
             formData.append('file', file);
 
-            // Use relative URL for API calls to work with Firebase hosting
             fetch('/api/process-image', {
                 method: 'POST',
                 body: formData

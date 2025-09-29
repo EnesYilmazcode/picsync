@@ -4,9 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PicSync - Screenshot to Calendar</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@300;400;500;600;700&family=Google+Sans+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
+        :root {
+            --primary-color: #1976d2;
+            --primary-dark: #1565c0;
+            --secondary-color: #f57c00;
+            --success-color: #388e3c;
+            --error-color: #d32f2f;
+            --warning-color: #f57c00;
+            --background: #fafafa;
+            --surface: #ffffff;
+            --surface-variant: #f5f5f5;
+            --on-surface: #1f1f1f;
+            --on-surface-variant: #5f6368;
+            --outline: #dadce0;
+            --outline-variant: #e8eaed;
+            --shadow: rgba(0, 0, 0, 0.1);
+            --shadow-hover: rgba(0, 0, 0, 0.15);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -14,292 +32,554 @@
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--background);
+            color: var(--on-surface);
+            line-height: 1.5;
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
         }
 
-        .container {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border-radius: 24px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            padding: 40px;
-            max-width: 600px;
-            width: 100%;
-            text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--outline-variant);
+            padding: 16px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 16px;
         }
 
         .logo {
-            font-size: 2.5rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 22px;
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+
+        .logo .material-icons {
+            font-size: 28px;
         }
 
         .tagline {
-            color: #6b7280;
-            font-size: 1.1rem;
-            margin-bottom: 40px;
+            color: var(--on-surface-variant);
+            font-size: 14px;
+            margin-left: auto;
+        }
+
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px 24px;
+        }
+
+        .page-title {
+            font-size: 32px;
             font-weight: 400;
+            color: var(--on-surface);
+            margin-bottom: 8px;
         }
 
-        .upload-area {
-            border: 3px dashed #d1d5db;
-            border-radius: 16px;
-            padding: 60px 20px;
-            margin-bottom: 30px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            position: relative;
-            overflow: hidden;
+        .page-subtitle {
+            font-size: 16px;
+            color: var(--on-surface-variant);
+            margin-bottom: 32px;
         }
 
-        .upload-area:hover {
-            border-color: #667eea;
-            background: rgba(102, 126, 234, 0.05);
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
         }
 
-        .upload-area.dragover {
-            border-color: #667eea;
-            background: rgba(102, 126, 234, 0.1);
-            transform: scale(1.02);
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--outline-variant);
+            border-radius: 12px;
+            padding: 24px;
+            transition: all 0.2s ease;
         }
 
-        .upload-icon {
-            font-size: 3rem;
-            color: #9ca3af;
+        .card:hover {
+            box-shadow: 0 4px 12px var(--shadow-hover);
+            border-color: var(--outline);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
             margin-bottom: 20px;
         }
 
-        .upload-text {
-            font-size: 1.2rem;
-            color: #374151;
-            margin-bottom: 10px;
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .upload-icon {
+            background: rgba(25, 118, 210, 0.1);
+            color: var(--primary-color);
+        }
+
+        .clipboard-icon {
+            background: rgba(245, 124, 0, 0.1);
+            color: var(--secondary-color);
+        }
+
+        .card-title {
+            font-size: 18px;
             font-weight: 500;
+            color: var(--on-surface);
+        }
+
+        .card-description {
+            color: var(--on-surface-variant);
+            font-size: 14px;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--outline);
+            border-radius: 8px;
+            padding: 32px 16px;
+            text-align: center;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            background: var(--surface-variant);
+        }
+
+        .upload-area:hover,
+        .upload-area.dragover {
+            border-color: var(--primary-color);
+            background: rgba(25, 118, 210, 0.04);
+        }
+
+        .upload-area .material-icons {
+            font-size: 48px;
+            color: var(--on-surface-variant);
+            margin-bottom: 12px;
+        }
+
+        .upload-text {
+            font-size: 16px;
+            color: var(--on-surface);
+            margin-bottom: 4px;
         }
 
         .upload-subtext {
-            color: #6b7280;
-            font-size: 0.9rem;
+            font-size: 14px;
+            color: var(--on-surface-variant);
         }
 
         .file-input {
             display: none;
         }
 
-        .buttons {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
         .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 12px;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 8px;
+            padding: 10px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s ease;
             text-decoration: none;
+            min-height: 40px;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: var(--primary-color);
             color: white;
         }
 
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+            background: var(--primary-dark);
+            box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
         }
 
         .btn-secondary {
-            background: rgba(107, 114, 128, 0.1);
-            color: #374151;
-            border: 1px solid rgba(107, 114, 128, 0.2);
+            background: transparent;
+            color: var(--primary-color);
+            border: 1px solid var(--outline);
         }
 
         .btn-secondary:hover {
-            background: rgba(107, 114, 128, 0.2);
+            background: rgba(25, 118, 210, 0.04);
+            border-color: var(--primary-color);
         }
 
-        .loading {
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #2e7d32;
+            box-shadow: 0 2px 8px rgba(56, 142, 60, 0.3);
+        }
+
+        .status-card {
+            background: var(--surface);
+            border: 1px solid var(--outline-variant);
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 24px;
             display: none;
-            margin: 20px 0;
         }
 
-        .spinner {
-            border: 3px solid #f3f4f6;
-            border-top: 3px solid #667eea;
+        .status-card.loading {
+            display: block;
+            border-color: var(--primary-color);
+        }
+
+        .status-card.success {
+            display: block;
+            border-color: var(--success-color);
+            background: rgba(56, 142, 60, 0.04);
+        }
+
+        .status-card.error {
+            display: block;
+            border-color: var(--error-color);
+            background: rgba(211, 47, 47, 0.04);
+        }
+
+        .status-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .status-icon {
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .loading .status-icon {
+            background: var(--primary-color);
+            color: white;
             animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
+        }
+
+        .success .status-icon {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .error .status-icon {
+            background: var(--error-color);
+            color: white;
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
 
-        .result {
-            display: none;
-            margin-top: 30px;
-            padding: 25px;
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.2);
-            border-radius: 16px;
-            text-align: left;
+        .status-title {
+            font-size: 16px;
+            font-weight: 500;
         }
 
-        .result h3 {
-            color: #065f46;
-            margin-bottom: 15px;
-            font-size: 1.2rem;
+        .loading .status-title {
+            color: var(--primary-color);
+        }
+
+        .success .status-title {
+            color: var(--success-color);
+        }
+
+        .error .status-title {
+            color: var(--error-color);
         }
 
         .event-details {
-            background: white;
+            background: var(--surface);
+            border: 1px solid var(--outline-variant);
+            border-radius: 8px;
             padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            margin: 16px 0;
         }
 
         .event-field {
+            display: flex;
             margin-bottom: 12px;
+            align-items: flex-start;
+        }
+
+        .event-field:last-child {
+            margin-bottom: 0;
         }
 
         .event-label {
-            font-weight: 600;
-            color: #374151;
-            margin-bottom: 4px;
+            font-weight: 500;
+            color: var(--on-surface-variant);
+            min-width: 80px;
+            font-size: 14px;
+            margin-right: 16px;
+            flex-shrink: 0;
         }
 
         .event-value {
-            color: #6b7280;
-            font-size: 0.95rem;
+            color: var(--on-surface);
+            font-size: 14px;
+            word-break: break-word;
         }
 
-        .calendar-btn {
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            padding: 15px 30px;
-            border-radius: 12px;
-            text-decoration: none;
+        .extracted-text {
+            background: var(--surface-variant);
+            border-radius: 6px;
+            padding: 12px;
+            font-family: 'Google Sans Mono', monospace;
+            font-size: 12px;
+            color: var(--on-surface-variant);
+            margin: 16px 0;
+            max-height: 120px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .chip {
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .calendar-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
-        }
-
-        .error {
-            display: none;
-            margin-top: 20px;
-            padding: 20px;
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.2);
+            gap: 4px;
+            padding: 4px 8px;
+            background: rgba(25, 118, 210, 0.1);
+            color: var(--primary-color);
             border-radius: 12px;
-            color: #dc2626;
+            font-size: 12px;
+            font-weight: 500;
         }
 
-        .preview-image {
-            max-width: 100%;
-            max-height: 200px;
-            border-radius: 8px;
-            margin: 15px 0;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        .chip.success {
+            background: rgba(56, 142, 60, 0.1);
+            color: var(--success-color);
         }
 
-        @media (max-width: 640px) {
-            .container {
-                padding: 30px 20px;
-                margin: 10px;
+        .chip .material-icons {
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 24px 16px;
             }
-            
-            .buttons {
+
+            .cards-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .page-title {
+                font-size: 28px;
+            }
+
+            .header-content {
+                padding: 0 16px;
+            }
+
+            .tagline {
+                display: none;
+            }
+
+            .actions {
                 flex-direction: column;
             }
-            
+
             .btn {
                 justify-content: center;
             }
         }
+
+        .footer {
+            margin-top: 64px;
+            padding: 24px;
+            text-align: center;
+            color: var(--on-surface-variant);
+            font-size: 14px;
+            border-top: 1px solid var(--outline-variant);
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="logo">PicSync</div>
-        <div class="tagline">Transform screenshots into calendar invites instantly</div>
-        
-        <div class="upload-area" id="uploadArea">
-            <div class="upload-icon">
-                <i class="fas fa-cloud-upload-alt"></i>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <span class="material-icons">calendar_today</span>
+                PicSync
             </div>
-            <div class="upload-text">Drop your screenshot here</div>
-            <div class="upload-subtext">or click to browse files • Supports PNG, JPG, GIF</div>
-            <input type="file" class="file-input" id="fileInput" accept="image/*">
+            <div class="tagline">Transform screenshots into calendar invites</div>
         </div>
-        
-        <div class="buttons">
-            <button class="btn btn-primary" id="uploadBtn">
-                <i class="fas fa-upload"></i>
-                Upload Image
-            </button>
-            <button class="btn btn-secondary" id="pasteBtn">
-                <i class="fas fa-clipboard"></i>
-                Paste from Clipboard
-            </button>
+    </header>
+
+    <main class="main-container">
+        <h1 class="page-title">Screenshot to Calendar</h1>
+        <p class="page-subtitle">Upload a screenshot or paste from clipboard to automatically extract event details and create calendar invites.</p>
+
+        <div class="cards-grid">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon upload-icon">
+                        <span class="material-icons">cloud_upload</span>
+                    </div>
+                    <div class="card-title">Upload Screenshot</div>
+                </div>
+                <p class="card-description">
+                    Drag and drop your screenshot or click to browse files. Supports PNG, JPG, and GIF formats.
+                </p>
+                <div class="upload-area" id="uploadArea">
+                    <span class="material-icons">add_photo_alternate</span>
+                    <div class="upload-text">Drop screenshot here</div>
+                    <div class="upload-subtext">or click to browse</div>
+                    <input type="file" class="file-input" id="fileInput" accept="image/*">
+                </div>
+                <div style="margin-top: 16px;">
+                    <button class="btn btn-primary" id="uploadBtn">
+                        <span class="material-icons">upload</span>
+                        Choose File
+                    </button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon clipboard-icon">
+                        <span class="material-icons">content_paste</span>
+                    </div>
+                    <div class="card-title">Paste from Clipboard</div>
+                </div>
+                <p class="card-description">
+                    Paste an image directly from your clipboard. Perfect for quick screenshots taken with Snipping Tool or Print Screen.
+                </p>
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-secondary" id="pasteBtn">
+                        <span class="material-icons">content_paste</span>
+                        Paste Image
+                    </button>
+                    <div class="chip" style="margin-left: 12px;">
+                        <span class="material-icons">keyboard</span>
+                        Ctrl+V
+                    </div>
+                </div>
+            </div>
         </div>
-        
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <div>Processing your image...</div>
+
+        <!-- Loading Status -->
+        <div class="status-card loading" id="loadingCard" style="display: none;">
+            <div class="status-header">
+                <div class="status-icon">
+                    <span class="material-icons">autorenew</span>
+                </div>
+                <div class="status-title">Processing Image</div>
+            </div>
+            <p>Extracting text and analyzing event details with AI...</p>
         </div>
-        
-        <div class="error" id="error"></div>
-        
-        <div class="result" id="result">
-            <h3><i class="fas fa-calendar-check"></i> Event Detected!</h3>
-            <div class="event-details" id="eventDetails"></div>
-            <a href="#" class="calendar-btn" id="calendarBtn" target="_blank">
-                <i class="fab fa-google"></i>
-                Add to Google Calendar
-            </a>
+
+        <!-- Success Status -->
+        <div class="status-card success" id="successCard" style="display: none;">
+            <div class="status-header">
+                <div class="status-icon">
+                    <span class="material-icons">check_circle</span>
+                </div>
+                <div class="status-title">Event Detected</div>
+                <div class="chip success" style="margin-left: auto;">
+                    <span class="material-icons">psychology</span>
+                    AI Enhanced
+                </div>
+            </div>
+            
+            <div class="event-details" id="eventDetails">
+                <!-- Event details will be populated here -->
+            </div>
+
+            <details style="margin: 16px 0;">
+                <summary style="cursor: pointer; color: var(--on-surface-variant); font-size: 14px;">Show extracted text</summary>
+                <div class="extracted-text" id="extractedText"></div>
+            </details>
+
+            <div class="actions">
+                <a href="#" class="btn btn-success" id="calendarBtn" target="_blank">
+                    <span class="material-icons">event</span>
+                    Add to Google Calendar
+                </a>
+                <button class="btn btn-secondary" onclick="location.reload()">
+                    <span class="material-icons">refresh</span>
+                    Process Another
+                </button>
+            </div>
         </div>
-    </div>
+
+        <!-- Error Status -->
+        <div class="status-card error" id="errorCard" style="display: none;">
+            <div class="status-header">
+                <div class="status-icon">
+                    <span class="material-icons">error</span>
+                </div>
+                <div class="status-title">Processing Failed</div>
+            </div>
+            <p id="errorMessage">An error occurred while processing your image.</p>
+            <div class="actions">
+                <button class="btn btn-primary" onclick="location.reload()">
+                    <span class="material-icons">refresh</span>
+                    Try Again
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>Powered by Google Cloud Vision API and Gemini AI • Built with FastAPI and Firebase</p>
+    </footer>
 
     <script>
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
         const uploadBtn = document.getElementById('uploadBtn');
         const pasteBtn = document.getElementById('pasteBtn');
-        const loading = document.getElementById('loading');
-        const result = document.getElementById('result');
-        const error = document.getElementById('error');
+        const loadingCard = document.getElementById('loadingCard');
+        const successCard = document.getElementById('successCard');
+        const errorCard = document.getElementById('errorCard');
         const eventDetails = document.getElementById('eventDetails');
+        const extractedText = document.getElementById('extractedText');
         const calendarBtn = document.getElementById('calendarBtn');
+        const errorMessage = document.getElementById('errorMessage');
 
         // File upload handling
         uploadArea.addEventListener('click', () => fileInput.click());
@@ -348,13 +628,13 @@
                 }
                 showError('No image found in clipboard');
             } catch (err) {
-                showError('Unable to access clipboard. Please use the upload button instead.');
+                showError('Unable to access clipboard. Please use the upload option instead.');
             }
         });
 
         function handleFile(file) {
             if (!file.type.startsWith('image/')) {
-                showError('Please select an image file');
+                showError('Please select an image file (PNG, JPG, or GIF)');
                 return;
             }
 
@@ -363,7 +643,6 @@
             const formData = new FormData();
             formData.append('file', file);
 
-            // Use relative URL for API calls to work with Firebase hosting
             fetch('/api/process-image', {
                 method: 'POST',
                 body: formData
@@ -379,7 +658,7 @@
             })
             .catch(err => {
                 hideLoading();
-                showError('Network error. Please try again.');
+                showError('Network error. Please check your connection and try again.');
             });
         }
 
@@ -404,39 +683,83 @@
             })
             .catch(err => {
                 hideLoading();
-                showError('Network error. Please try again.');
+                showError('Network error. Please check your connection and try again.');
             });
         }
 
         function showLoading() {
-            loading.style.display = 'block';
-            result.style.display = 'none';
-            error.style.display = 'none';
+            hideAllCards();
+            loadingCard.style.display = 'block';
         }
 
         function hideLoading() {
-            loading.style.display = 'none';
+            loadingCard.style.display = 'none';
         }
 
         function showResult(data) {
+            hideAllCards();
+            
             const event = data.event;
             
-            eventDetails.innerHTML = `
-                ${event.title ? `<div class="event-field"><div class="event-label">Title</div><div class="event-value">${event.title}</div></div>` : ''}
-                ${event.date ? `<div class="event-field"><div class="event-label">Date</div><div class="event-value">${event.date}</div></div>` : ''}
-                ${event.time ? `<div class="event-field"><div class="event-label">Time</div><div class="event-value">${event.time}</div></div>` : ''}
-                ${event.location ? `<div class="event-field"><div class="event-label">Location</div><div class="event-value">${event.location}</div></div>` : ''}
-                ${event.description ? `<div class="event-field"><div class="event-label">Description</div><div class="event-value">${event.description}</div></div>` : ''}
-            `;
+            // Populate event details
+            let detailsHtml = '';
+            if (event.title) {
+                detailsHtml += `<div class="event-field"><div class="event-label">Title</div><div class="event-value">${escapeHtml(event.title)}</div></div>`;
+            }
+            if (event.date) {
+                detailsHtml += `<div class="event-field"><div class="event-label">Date</div><div class="event-value">${escapeHtml(event.date)}</div></div>`;
+            }
             
+            // Show time range if both start and end times are available
+            if (event.start_time && event.end_time) {
+                const timeRange = `${event.start_time} - ${event.end_time}`;
+                detailsHtml += `<div class="event-field"><div class="event-label">Time</div><div class="event-value">${escapeHtml(timeRange)}</div></div>`;
+            } else if (event.start_time) {
+                detailsHtml += `<div class="event-field"><div class="event-label">Start Time</div><div class="event-value">${escapeHtml(event.start_time)}</div></div>`;
+            } else if (event.time) {
+                detailsHtml += `<div class="event-field"><div class="event-label">Time</div><div class="event-value">${escapeHtml(event.time)}</div></div>`;
+            }
+            
+            if (event.timezone) {
+                detailsHtml += `<div class="event-field"><div class="event-label">Timezone</div><div class="event-value">${escapeHtml(event.timezone)}</div></div>`;
+            }
+            if (event.duration) {
+                detailsHtml += `<div class="event-field"><div class="event-label">Duration</div><div class="event-value">${escapeHtml(event.duration)}</div></div>`;
+            }
+            if (event.location) {
+                detailsHtml += `<div class="event-field"><div class="event-label">Location</div><div class="event-value">${escapeHtml(event.location)}</div></div>`;
+            }
+            if (event.description) {
+                detailsHtml += `<div class="event-field"><div class="event-label">Description</div><div class="event-value">${escapeHtml(event.description)}</div></div>`;
+            }
+            
+            eventDetails.innerHTML = detailsHtml || '<div class="event-field"><div class="event-value">No event details could be extracted from the image.</div></div>';
+            
+            // Show extracted text
+            extractedText.textContent = data.extracted_text || 'No text extracted';
+            
+            // Set calendar URL
             calendarBtn.href = data.calendar_url;
-            result.style.display = 'block';
+            
+            successCard.style.display = 'block';
         }
 
         function showError(message) {
-            error.textContent = message;
-            error.style.display = 'block';
-            result.style.display = 'none';
+            hideAllCards();
+            errorMessage.textContent = message;
+            errorCard.style.display = 'block';
+        }
+
+        function hideAllCards() {
+            loadingCard.style.display = 'none';
+            successCard.style.display = 'none';
+            errorCard.style.display = 'none';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         // Keyboard shortcuts

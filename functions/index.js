@@ -1,6 +1,7 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const vision = require('@google-cloud/vision');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const path = require('path');
 
 // Initialize Firebase Admin
@@ -10,6 +11,20 @@ admin.initializeApp();
 const visionClient = new vision.ImageAnnotatorClient({
   keyFilename: path.join(__dirname, 'keys', 'vision-key.json')
 });
+
+// Initialize Gemini AI
+let geminiClient = null;
+try {
+  const geminiApiKey = functions.config().gemini?.api_key;
+  if (geminiApiKey) {
+    const genAI = new GoogleGenerativeAI(geminiApiKey);
+    geminiClient = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  } else {
+    console.warn('Gemini API key not found in Firebase config');
+  }
+} catch (error) {
+  console.error('Error initializing Gemini:', error);
+}
 
 class CalendarEvent {
   constructor() {
@@ -41,7 +56,104 @@ function extractTextFromImage(imageData) {
   });
 }
 
-function parseEventFromText(text) {
+function getCurrentDateContext() {
+  const now = new Date();
+  const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+  const dateStr = now.toLocaleDateString('en-US', options);
+  const shortDate = now.toLocaleDateString('en-US');
+  return `Today is ${dateStr} (${shortDate})`;
+}
+
+async function enhanceEventWithGemini(text, basicEvent) {
+  if (!geminiClient) {
+    return basicEvent;
+  }
+  
+  try {
+    const prompt = `
+Extract calendar event details from the text below.
+Return ONLY one JSON object. Do not include prose or code fences.
+
+TEXT:
+${text}
+
+CURRENT DATE: ${getCurrentDateContext()}
+
+RULES:
+- title: main event name (room name, company info session, interview, meeting subject).
+- date: MM/DD/YYYY format. CRITICAL: Look for actual dates in text like "Oct 3, 2025", "August 25, 1004", etc. Do NOT use CURRENT DATE unless no date is found.
+- start_time: Extract START time from ranges like "2:30 PM to 4:00 PM" → "2:30 PM"
+- end_time: Extract END time from ranges like "2:30 PM to 4:00 PM" → "4:00 PM"
+- timezone: use explicit TZ if present, else 'America/New_York'.
+- location: only if explicitly present (room, building, university, Zoom, etc.).
+- description: 1–2 professional sentences summarizing purpose.
+- duration: calculate from time range (e.g., "2:30 PM to 4:00 PM" = "1 hour 30 minutes").
+- confidence: High, Medium, or Low based on clarity.
+
+SCHEMA:
+{
+  "title": string | null,
+  "date": string | null,
+  "start_time": string | null,
+  "end_time": string | null,
+  "timezone": string | null,
+  "location": string | null,
+  "description": string | null,
+  "duration": string | null,
+  "confidence": "High"|"Medium"|"Low"
+}
+`;
+    
+    const result = await geminiClient.generateContent(prompt);
+    const response = await result.response;
+    
+    // Parse the JSON response
+    try {
+      let responseText = response.text().trim();
+      if (responseText.startsWith('```json')) {
+        responseText = responseText.slice(7, -3);
+      } else if (responseText.startsWith('```')) {
+        responseText = responseText.slice(3, -3);
+      }
+      
+      const geminiData = JSON.parse(responseText);
+      
+      // Update event with Gemini's enhanced data
+      const enhancedEvent = new CalendarEvent();
+      enhancedEvent.title = geminiData.title || basicEvent.title;
+      enhancedEvent.date = geminiData.date || basicEvent.date;
+      
+      // Handle start_time/end_time or fall back to time
+      const startTime = geminiData.start_time;
+      const endTime = geminiData.end_time;
+      if (startTime) {
+        enhancedEvent.time = startTime;
+      } else {
+        enhancedEvent.time = geminiData.time || basicEvent.time;
+      }
+      
+      enhancedEvent.location = geminiData.location || basicEvent.location;
+      enhancedEvent.description = geminiData.description || basicEvent.description;
+      enhancedEvent.duration = geminiData.duration || basicEvent.duration;
+      
+      // Store the enhanced data for API response
+      enhancedEvent._geminiData = geminiData;
+      
+      return enhancedEvent;
+      
+    } catch (jsonError) {
+      console.error('Failed to parse Gemini JSON response:', jsonError);
+      console.error('Raw response:', responseText);
+      return basicEvent;
+    }
+    
+  } catch (error) {
+    console.error('Error with Gemini enhancement:', error);
+    return basicEvent;
+  }
+}
+
+async function parseEventFromText(text) {
   const event = new CalendarEvent();
   
   // Clean up the text
@@ -119,7 +231,10 @@ function parseEventFromText(text) {
   
   event.description = descriptionLines.slice(0, 3).join('\n');  // Limit description length
   
-  return event;
+  // Enhance with Gemini AI if available
+  const enhancedEvent = await enhanceEventWithGemini(text, event);
+  
+  return enhancedEvent;
 }
 
 function createGoogleCalendarUrl(event) {
@@ -131,15 +246,92 @@ function createGoogleCalendarUrl(event) {
     params.push(`text=${encodeURIComponent(event.title)}`);
   }
   
-  // Combine date and time for dates parameter
-  if (event.date && event.time) {
-    // This is a simplified approach - in production you'd want more robust date parsing
-    const dateStr = event.date.replace(/[/-]/g, '');
-    const timeStr = event.time.replace(/[:\s]/g, '').replace(/[APM]/gi, '');
-    params.push(`dates=${dateStr}T${timeStr}00/${dateStr}T${timeStr}00`);
-  } else if (event.date) {
-    const dateStr = event.date.replace(/[/-]/g, '');
-    params.push(`dates=${dateStr}T120000/${dateStr}T130000`);
+  // Handle dates and times properly
+  if (event.date) {
+    try {
+      // Get enhanced data if available
+      const enhancedData = event._geminiData || {};
+      const startTime = enhancedData.start_time || event.time;
+      const endTime = enhancedData.end_time;
+      
+      // Parse date (MM/DD/YYYY to YYYY-MM-DD)
+      const dateParts = event.date.split('/');
+      if (dateParts.length === 3) {
+        const [month, day, year] = dateParts;
+        const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        
+        // Convert times to 24-hour format
+        function convertTo24h(timeStr) {
+          if (!timeStr) return "12:00";
+          
+          // Clean the time string
+          timeStr = timeStr.trim();
+          
+          // Handle formats like "2:30 PM", "14:30", etc.
+          if (timeStr.toUpperCase().includes('PM')) {
+            const timePart = timeStr.toUpperCase().replace('PM', '').trim();
+            if (timePart.includes(':')) {
+              const [hours, minutes] = timePart.split(':');
+              let hour = parseInt(hours);
+              if (hour !== 12) hour += 12;
+              return `${hour.toString().padStart(2, '0')}:${minutes}`;
+            } else {
+              let hour = parseInt(timePart);
+              if (hour !== 12) hour += 12;
+              return `${hour.toString().padStart(2, '0')}:00`;
+            }
+          } else if (timeStr.toUpperCase().includes('AM')) {
+            const timePart = timeStr.toUpperCase().replace('AM', '').trim();
+            if (timePart.includes(':')) {
+              const [hours, minutes] = timePart.split(':');
+              let hour = parseInt(hours);
+              if (hour === 12) hour = 0;
+              return `${hour.toString().padStart(2, '0')}:${minutes}`;
+            } else {
+              let hour = parseInt(timePart);
+              if (hour === 12) hour = 0;
+              return `${hour.toString().padStart(2, '0')}:00`;
+            }
+          } else {
+            // Assume 24-hour format
+            if (timeStr.includes(':')) {
+              return timeStr;
+            } else {
+              return `${timeStr}:00`;
+            }
+          }
+        }
+        
+        const start24h = convertTo24h(startTime);
+        
+        // Calculate end time
+        let end24h;
+        if (endTime) {
+          end24h = convertTo24h(endTime);
+        } else {
+          // Default to 1 hour later
+          const [startHour, startMin] = start24h.split(':');
+          const startDate = new Date();
+          startDate.setHours(parseInt(startHour), parseInt(startMin));
+          startDate.setHours(startDate.getHours() + 1);
+          end24h = `${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`;
+        }
+        
+        // Format for Google Calendar (YYYYMMDDTHHMMSS)
+        const startIso = `${isoDate.replace(/-/g, '')}T${start24h.replace(':', '')}00`;
+        const endIso = `${isoDate.replace(/-/g, '')}T${end24h.replace(':', '')}00`;
+        
+        params.push(`dates=${startIso}/${endIso}`);
+      }
+      
+    } catch (error) {
+      console.error('Error formatting date/time:', error);
+      // Fallback to basic format
+      if (event.date) {
+        const dateBasic = event.date.replace(/\//g, '');
+        params.push(`dates=${dateBasic}T120000/${dateBasic}T130000`);
+      }
+    }
   }
   
   if (event.location) {
@@ -206,10 +398,13 @@ exports.parseImage = functions.https.onRequest(async (req, res) => {
         }
         
         // Parse event information
-        const event = parseEventFromText(extractedText);
+        const event = await parseEventFromText(extractedText);
         
         // Create Google Calendar URL
         const calendarUrl = createGoogleCalendarUrl(event);
+        
+        // Get enhanced data if available
+        const enhancedData = event._geminiData || {};
         
         res.json({
           success: true,
@@ -218,6 +413,9 @@ exports.parseImage = functions.https.onRequest(async (req, res) => {
             title: event.title,
             date: event.date,
             time: event.time,
+            start_time: enhancedData.start_time || event.time,
+            end_time: enhancedData.end_time,
+            timezone: enhancedData.timezone,
             location: event.location,
             description: event.description,
             duration: event.duration
@@ -281,10 +479,13 @@ exports.visionOcr = functions.https.onRequest(async (req, res) => {
     }
     
     // Parse event information
-    const event = parseEventFromText(extractedText);
+    const event = await parseEventFromText(extractedText);
     
     // Create Google Calendar URL
     const calendarUrl = createGoogleCalendarUrl(event);
+    
+    // Get enhanced data if available
+    const enhancedData = event._geminiData || {};
     
     res.json({
       success: true,
@@ -293,6 +494,9 @@ exports.visionOcr = functions.https.onRequest(async (req, res) => {
         title: event.title,
         date: event.date,
         time: event.time,
+        start_time: enhancedData.start_time || event.time,
+        end_time: enhancedData.end_time,
+        timezone: enhancedData.timezone,
         location: event.location,
         description: event.description,
         duration: event.duration

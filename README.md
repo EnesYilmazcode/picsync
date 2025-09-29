@@ -28,6 +28,7 @@ Transform screenshots into Google Calendar invites instantly using AI-powered te
 2. **Python** (v3.8 or higher)
 3. **Firebase CLI**: `npm install -g firebase-tools`
 4. **Google Cloud Project** with Vision API enabled
+5. **Gemini AI API Key**: Get from [Google AI Studio](https://makersuite.google.com/app/apikey)
 
 ### Local Development
 
@@ -36,24 +37,33 @@ Transform screenshots into Google Calendar invites instantly using AI-powered te
    cd picsync
    ```
 
-2. **Install Python dependencies** (for local FastAPI development):
+2. **Set up environment variables**:
+   ```bash
+   # Create .env file for local development
+   echo "GEMINI_API_KEY=your_gemini_api_key_here" > .env
+   
+   # For Firebase Functions, set the config
+   firebase functions:config:set gemini.api_key="your_gemini_api_key_here"
+   ```
+
+3. **Install Python dependencies** (for local FastAPI development):
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Install Firebase Functions dependencies**:
+4. **Install Firebase Functions dependencies**:
    ```bash
    cd functions
    npm install
    cd ..
    ```
 
-4. **Start Firebase emulators**:
+5. **Start Firebase emulators**:
    ```bash
    firebase emulators:start
    ```
 
-5. **Access the application**:
+6. **Access the application**:
    - Frontend: http://localhost:5000
    - Functions: http://localhost:5001
 
@@ -62,6 +72,8 @@ Transform screenshots into Google Calendar invites instantly using AI-powered te
 If you prefer to run the FastAPI server directly:
 
 ```bash
+# Make sure you have a .env file with GEMINI_API_KEY
+pip install -r requirements.txt
 python main.py
 ```
 

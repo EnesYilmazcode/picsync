@@ -109,10 +109,6 @@
             transition: all 0.2s ease;
         }
 
-        .card:hover {
-            box-shadow: 0 4px 12px var(--shadow-hover);
-            border-color: var(--outline);
-        }
 
         .card-header {
             display: flex;
@@ -453,49 +449,31 @@
         <h1 class="page-title">Screenshot to Calendar</h1>
         <p class="page-subtitle">Upload a screenshot or paste from clipboard to automatically extract event details and create calendar invites.</p>
 
-        <div class="cards-grid">
+        <div class="cards-grid" id="uploadSection">
             <div class="card">
                 <div class="card-header">
                     <div class="card-icon upload-icon">
-                        <span class="material-icons">cloud_upload</span>
+                        <span class="material-icons">add_photo_alternate</span>
                     </div>
                     <div class="card-title">Upload Screenshot</div>
                 </div>
                 <p class="card-description">
-                    Drag and drop your screenshot or click to browse files. Supports PNG, JPG, and GIF formats.
+                    Drag and drop your screenshot, click to browse files, or paste from clipboard (Ctrl+V). Supports PNG, JPG, and GIF formats.
                 </p>
                 <div class="upload-area" id="uploadArea">
                     <span class="material-icons">add_photo_alternate</span>
-                    <div class="upload-text">Drop screenshot here</div>
-                    <div class="upload-subtext">or click to browse</div>
+                    <div class="upload-text">Drop screenshot here or paste from clipboard</div>
+                    <div class="upload-subtext">or click to browse files</div>
                     <input type="file" class="file-input" id="fileInput" accept="image/*">
                 </div>
-                <div style="margin-top: 16px;">
+                <div style="margin-top: 16px; display: flex; gap: 12px; align-items: center;">
                     <button class="btn btn-primary" id="uploadBtn">
                         <span class="material-icons">upload</span>
                         Choose File
                     </button>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-icon clipboard-icon">
-                        <span class="material-icons">content_paste</span>
-                    </div>
-                    <div class="card-title">Paste from Clipboard</div>
-                </div>
-                <p class="card-description">
-                    Paste an image directly from your clipboard. Perfect for quick screenshots taken with Snipping Tool or Print Screen.
-                </p>
-                <div style="margin-top: 20px;">
-                    <button class="btn btn-secondary" id="pasteBtn">
-                        <span class="material-icons">content_paste</span>
-                        Paste Image
-                    </button>
-                    <div class="chip" style="margin-left: 12px;">
+                    <div class="chip">
                         <span class="material-icons">keyboard</span>
-                        Ctrl+V
+                        Ctrl+V to paste
                     </div>
                 </div>
             </div>
@@ -529,10 +507,6 @@
                 <!-- Event details will be populated here -->
             </div>
 
-            <details style="margin: 16px 0;">
-                <summary style="cursor: pointer; color: var(--on-surface-variant); font-size: 14px;">Show extracted text</summary>
-                <div class="extracted-text" id="extractedText"></div>
-            </details>
 
             <div class="actions">
                 <a href="#" class="btn btn-success" id="calendarBtn" target="_blank">
@@ -572,12 +546,11 @@
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
         const uploadBtn = document.getElementById('uploadBtn');
-        const pasteBtn = document.getElementById('pasteBtn');
+        const uploadSection = document.getElementById('uploadSection');
         const loadingCard = document.getElementById('loadingCard');
         const successCard = document.getElementById('successCard');
         const errorCard = document.getElementById('errorCard');
         const eventDetails = document.getElementById('eventDetails');
-        const extractedText = document.getElementById('extractedText');
         const calendarBtn = document.getElementById('calendarBtn');
         const errorMessage = document.getElementById('errorMessage');
 
@@ -610,7 +583,7 @@
         });
 
         // Clipboard handling
-        pasteBtn.addEventListener('click', async () => {
+        async function handleClipboardPaste() {
             try {
                 const clipboardItems = await navigator.clipboard.read();
                 for (const clipboardItem of clipboardItems) {
@@ -630,7 +603,7 @@
             } catch (err) {
                 showError('Unable to access clipboard. Please use the upload option instead.');
             }
-        });
+        }
 
         function handleFile(file) {
             if (!file.type.startsWith('image/')) {
@@ -735,9 +708,6 @@
             
             eventDetails.innerHTML = detailsHtml || '<div class="event-field"><div class="event-value">No event details could be extracted from the image.</div></div>';
             
-            // Show extracted text
-            extractedText.textContent = data.extracted_text || 'No text extracted';
-            
             // Set calendar URL
             calendarBtn.href = data.calendar_url;
             
@@ -751,6 +721,7 @@
         }
 
         function hideAllCards() {
+            uploadSection.style.display = 'none';
             loadingCard.style.display = 'none';
             successCard.style.display = 'none';
             errorCard.style.display = 'none';
@@ -766,7 +737,7 @@
         document.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.key === 'v') {
                 e.preventDefault();
-                pasteBtn.click();
+                handleClipboardPaste();
             }
         });
     </script>

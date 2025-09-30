@@ -154,6 +154,46 @@
             line-height: 1.4;
         }
 
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .upload-icon {
+            background: rgba(25, 118, 210, 0.1);
+            color: var(--primary-color);
+        }
+
+        .clipboard-icon {
+            background: rgba(245, 124, 0, 0.1);
+            color: var(--secondary-color);
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 500;
+            color: var(--on-surface);
+        }
+
+        .card-description {
+            color: var(--on-surface-variant);
+            font-size: 14px;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
         .upload-area {
             border: 2px dashed var(--outline);
             border-radius: 8px;
@@ -543,7 +583,7 @@
     </main>
 
     <footer class="footer">
-        <p>Powered by Google Cloud Vision API and Gemini AI • Built with FastAPI and Firebase</p>
+        <p>Powered by Google Cloud Vision API and Gemini AI • Built with Firebase</p>
     </footer>
 
     <script>
@@ -694,7 +734,7 @@
             } else if (event.start_time) {
                 detailsHtml += `<div class="event-field"><div class="event-label">Start Time</div><div class="event-value">${escapeHtml(event.start_time)}</div></div>`;
             } else if (event.time) {
-                detailsHtml += `<div class="event-field"><div class="event-label">Time</div><div class="event-value">${escapeHtml(event.time)}</div></div>`;
+                detailsHtml += `<div class="event-field"><div class="event-label">Start Time</div><div class="event-value">${escapeHtml(event.time)}</div></div>`;
             }
             
             if (event.timezone) {

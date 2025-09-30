@@ -3,6 +3,7 @@ const admin = require('firebase-admin');
 const vision = require('@google-cloud/vision');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const path = require('path');
+try { require('dotenv').config(); } catch (e) { /* dotenv not installed; env fallback only */ }
 
 // Initialize Firebase Admin
 admin.initializeApp();
@@ -15,12 +16,15 @@ const visionClient = new vision.ImageAnnotatorClient({
 // Initialize Gemini AI
 let geminiClient = null;
 try {
-  const geminiApiKey = functions.config().gemini?.api_key;
+  const geminiApiKey = process.env.GEMINI_API_KEY || (functions.config().gemini && functions.config().gemini.api_key);
   if (geminiApiKey) {
     const genAI = new GoogleGenerativeAI(geminiApiKey);
-    geminiClient = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    // Use Gemini 2.5 Flash - fast and capable
+    geminiClient = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash'
+    });
   } else {
-    console.warn('Gemini API key not found in Firebase config');
+    console.warn('Gemini API key not found in Firebase config or environment (GEMINI_API_KEY). Falling back to basic parsing.');
   }
 } catch (error) {
   console.error('Error initializing Gemini:', error);
@@ -70,59 +74,29 @@ async function enhanceEventWithGemini(text, basicEvent) {
   }
   
   try {
-    const prompt = `
-Extract calendar event details from the text below.
-Return ONLY one JSON object. Do not include prose or code fences.
+    const prompt = `Extract calendar event details from the text below. Return ONLY one JSON object.\n\nTEXT:\n${text}\n\nCURRENT DATE: ${getCurrentDateContext()}\n\nRULES:\n- title: main event name (room name, company info session, interview, meeting subject).\n- date: ALWAYS use MM/DD/YYYY format. CRITICAL: Look for actual dates in text like "Oct 3, 2025", "August 25, 2024", "Sep 29, 2025", etc. Convert to MM/DD/YYYY (e.g., "Oct 3, 2025" → "10/03/2025", "Sep 29, 2025" → "09/29/2025"). Do NOT use CURRENT DATE unless no date is found.\n- start_time: Extract START time from ranges like "2:30 PM to 4:00 PM" → "2:30 PM". For single times like "8 PM", use as start time.\n- end_time: Extract END time from ranges like "2:30 PM to 4:00 PM" → "4:00 PM". If only start time given, calculate end time by adding duration.\n- timezone: use explicit TZ if present, else 'America/New_York'.\n- location: Extract ONLY the specific venue/building/room name. DO NOT include full addresses or long descriptions. For example: "Oldfield's Tavern" not long phrases.\n- description: 1–2 professional sentences summarizing purpose.\n- duration: calculate from time range or use "1 hour" as default.\n- confidence: High, Medium, or Low based on clarity.\n\nSCHEMA:{"title": null, "date": null, "start_time": null, "end_time": null, "timezone": null, "location": null, "description": null, "duration": null, "confidence": "High"}`;
 
-TEXT:
-${text}
-
-CURRENT DATE: ${getCurrentDateContext()}
-
-RULES:
-- title: main event name (room name, company info session, interview, meeting subject).
-- date: MM/DD/YYYY format. CRITICAL: Look for actual dates in text like "Oct 3, 2025", "August 25, 1004", etc. Do NOT use CURRENT DATE unless no date is found.
-- start_time: Extract START time from ranges like "2:30 PM to 4:00 PM" → "2:30 PM"
-- end_time: Extract END time from ranges like "2:30 PM to 4:00 PM" → "4:00 PM"
-- timezone: use explicit TZ if present, else 'America/New_York'.
-- location: only if explicitly present (room, building, university, Zoom, etc.).
-- description: 1–2 professional sentences summarizing purpose.
-- duration: calculate from time range (e.g., "2:30 PM to 4:00 PM" = "1 hour 30 minutes").
-- confidence: High, Medium, or Low based on clarity.
-
-SCHEMA:
-{
-  "title": string | null,
-  "date": string | null,
-  "start_time": string | null,
-  "end_time": string | null,
-  "timezone": string | null,
-  "location": string | null,
-  "description": string | null,
-  "duration": string | null,
-  "confidence": "High"|"Medium"|"Low"
-}
-`;
-    
     const result = await geminiClient.generateContent(prompt);
     const response = await result.response;
-    
+
     // Parse the JSON response
+    let responseText = '';
     try {
-      let responseText = response.text().trim();
+      responseText = response.text().trim();
+      // When responseMimeType is JSON, it should be raw JSON; still handle code fences just in case
       if (responseText.startsWith('```json')) {
         responseText = responseText.slice(7, -3);
       } else if (responseText.startsWith('```')) {
         responseText = responseText.slice(3, -3);
       }
-      
+
       const geminiData = JSON.parse(responseText);
-      
+
       // Update event with Gemini's enhanced data
       const enhancedEvent = new CalendarEvent();
       enhancedEvent.title = geminiData.title || basicEvent.title;
       enhancedEvent.date = geminiData.date || basicEvent.date;
-      
+
       // Handle start_time/end_time or fall back to time
       const startTime = geminiData.start_time;
       const endTime = geminiData.end_time;
@@ -131,26 +105,51 @@ SCHEMA:
       } else {
         enhancedEvent.time = geminiData.time || basicEvent.time;
       }
-      
+
       enhancedEvent.location = geminiData.location || basicEvent.location;
       enhancedEvent.description = geminiData.description || basicEvent.description;
       enhancedEvent.duration = geminiData.duration || basicEvent.duration;
-      
-      // Store the enhanced data for API response
+
+      // Store the enhanced data for API response and diagnostics
+      enhancedEvent._gemini_used = true;
       enhancedEvent._geminiData = geminiData;
-      
+
       return enhancedEvent;
-      
     } catch (jsonError) {
       console.error('Failed to parse Gemini JSON response:', jsonError);
-      console.error('Raw response:', responseText);
+      console.error('Raw response text:', responseText);
       return basicEvent;
     }
-    
   } catch (error) {
     console.error('Error with Gemini enhancement:', error);
     return basicEvent;
   }
+}
+
+// Try to get a complete Google Calendar URL directly from Gemini
+async function generateCalendarUrlWithGemini(rawText) {
+  if (!geminiClient) return null;
+  try {
+    const prompt = `From the event text below, construct a Google Calendar template URL for a single event.\n\nREQUIREMENTS:\n- Use the 'render?action=TEMPLATE' URL form.\n- Include: text (title), details (1–2 sentences), dates (YYYYMMDDTHHMMSS/YYYYMMDDTHHMMSS), and ctz (timezone).\n- If end time missing, default to 1 hour after start.\n- If timezone missing, use America/New_York.\n- Encode characters as required by URL rules.\n\nReturn ONLY one JSON object with this shape: {"url": "https://calendar.google.com/calendar/render?action=TEMPLATE&..."}\n\nTEXT:\n${rawText}`;
+
+    const result = await geminiClient.generateContent(prompt);
+    const response = await result.response;
+    let responseText = response.text().trim();
+    if (responseText.startsWith('```json')) responseText = responseText.slice(7, -3);
+    else if (responseText.startsWith('```')) responseText = responseText.slice(3, -3);
+    const data = JSON.parse(responseText);
+    const url = (data && data.url && String(data.url).trim()) || null;
+    if (
+      url &&
+      url.startsWith('https://calendar.google.com/calendar/render?action=TEMPLATE') &&
+      url.includes('dates=')
+    ) {
+      return url;
+    }
+  } catch (e) {
+    console.error('Gemini direct URL generation failed:', e);
+  }
+  return null;
 }
 
 async function parseEventFromText(text) {
@@ -254,12 +253,41 @@ function createGoogleCalendarUrl(event) {
       const startTime = enhancedData.start_time || event.time;
       const endTime = enhancedData.end_time;
       
-      // Parse date (MM/DD/YYYY to YYYY-MM-DD)
-      const dateParts = event.date.split('/');
-      if (dateParts.length === 3) {
-        const [month, day, year] = dateParts;
-        const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-        
+      // Parse date - handle multiple formats
+      let isoDate = null;
+      
+      // Try MM/DD/YYYY format first
+      if (event.date.includes('/')) {
+        const dateParts = event.date.split('/');
+        if (dateParts.length === 3) {
+          const [month, day, year] = dateParts;
+          isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+      }
+      // Try "Month DD, YYYY" format (e.g., "Oct 3, 2025")
+      else if (event.date.includes(',')) {
+        try {
+          const parsedDate = new Date(event.date);
+          if (!isNaN(parsedDate.getTime())) {
+            isoDate = parsedDate.toISOString().split('T')[0];
+          }
+        } catch (error) {
+          console.error('Error parsing date with comma:', error);
+        }
+      }
+      // Try "Month DD YYYY" format (without comma)
+      else {
+        try {
+          const parsedDate = new Date(event.date);
+          if (!isNaN(parsedDate.getTime())) {
+            isoDate = parsedDate.toISOString().split('T')[0];
+          }
+        } catch (error) {
+          console.error('Error parsing date without comma:', error);
+        }
+      }
+      
+      if (isoDate) {
         // Convert times to 24-hour format
         function convertTo24h(timeStr) {
           if (!timeStr) return "12:00";
@@ -322,6 +350,10 @@ function createGoogleCalendarUrl(event) {
         const endIso = `${isoDate.replace(/-/g, '')}T${end24h.replace(':', '')}00`;
         
         params.push(`dates=${startIso}/${endIso}`);
+      } else {
+        // If we couldn't parse the date, use current date as fallback
+        const fallbackDate = new Date().toISOString().split('T')[0].replace(/-/g, '');
+        params.push(`dates=${fallbackDate}T120000/${fallbackDate}T130000`);
       }
       
     } catch (error) {
@@ -341,6 +373,11 @@ function createGoogleCalendarUrl(event) {
   if (event.description) {
     params.push(`details=${encodeURIComponent(event.description)}`);
   }
+  
+  // Add timezone - get from enhanced data or use default
+  const enhancedData = event._geminiData || {};
+  const timezone = enhancedData.timezone || 'America/New_York';
+  params.push(`ctz=${encodeURIComponent(timezone)}`);
   
   if (params.length > 0) {
     return baseUrl + "&" + params.join("&");
@@ -400,8 +437,13 @@ exports.parseImage = functions.https.onRequest(async (req, res) => {
         // Parse event information
         const event = await parseEventFromText(extractedText);
         
-        // Create Google Calendar URL
-        const calendarUrl = createGoogleCalendarUrl(event);
+        // Try Gemini direct URL first, fall back to builder
+        let calendarUrl = await generateCalendarUrlWithGemini(extractedText);
+        let calendarUrlSource = 'gemini-url';
+        if (!calendarUrl) {
+          calendarUrl = createGoogleCalendarUrl(event);
+          calendarUrlSource = 'builder';
+        }
         
         // Get enhanced data if available
         const enhancedData = event._geminiData || {};
@@ -420,6 +462,8 @@ exports.parseImage = functions.https.onRequest(async (req, res) => {
             description: event.description,
             duration: event.duration
           },
+          gemini_used: !!event._gemini_used,
+          calendar_url_source: calendarUrlSource,
           calendar_url: calendarUrl
         });
         
@@ -481,8 +525,13 @@ exports.visionOcr = functions.https.onRequest(async (req, res) => {
     // Parse event information
     const event = await parseEventFromText(extractedText);
     
-    // Create Google Calendar URL
-    const calendarUrl = createGoogleCalendarUrl(event);
+    // Try Gemini direct URL first, fall back to builder
+    let calendarUrl = await generateCalendarUrlWithGemini(extractedText);
+    let calendarUrlSource = 'gemini-url';
+    if (!calendarUrl) {
+      calendarUrl = createGoogleCalendarUrl(event);
+      calendarUrlSource = 'builder';
+    }
     
     // Get enhanced data if available
     const enhancedData = event._geminiData || {};
@@ -501,6 +550,8 @@ exports.visionOcr = functions.https.onRequest(async (req, res) => {
         description: event.description,
         duration: event.duration
       },
+      gemini_used: !!event._gemini_used,
+      calendar_url_source: calendarUrlSource,
       calendar_url: calendarUrl
     });
     

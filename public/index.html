@@ -793,7 +793,6 @@
     <script>
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
-        const uploadBtn = document.getElementById('uploadBtn');
         const uploadSection = document.getElementById('uploadSection');
         const loadingCard = document.getElementById('loadingCard');
         const successCard = document.getElementById('successCard');
@@ -804,7 +803,6 @@
 
         // File upload handling
         uploadArea.addEventListener('click', () => fileInput.click());
-        uploadBtn.addEventListener('click', () => fileInput.click());
 
         uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();

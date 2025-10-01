@@ -110,7 +110,6 @@
         }
 
         .card:hover {
-            box-shadow: 0 4px 12px var(--shadow-hover);
             border-color: var(--outline);
         }
 
@@ -470,11 +469,154 @@
 
         .footer {
             margin-top: 64px;
-            padding: 24px;
+            padding: 12px;
             text-align: center;
             color: var(--on-surface-variant);
             font-size: 14px;
             border-top: 1px solid var(--outline-variant);
+        }
+
+        /* How It Works Section */
+        .how-it-works {
+            margin: 48px 0;
+            text-align: center;
+        }
+
+        .section-title {
+            font-size: 28px;
+            font-weight: 400;
+            color: var(--on-surface);
+            margin-bottom: 12px;
+        }
+
+        .section-subtitle {
+            font-size: 16px;
+            color: var(--on-surface-variant);
+            margin-bottom: 40px;
+        }
+
+        .steps-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 32px;
+            margin-bottom: 48px;
+        }
+
+        .step {
+            position: relative;
+            padding: 24px 16px;
+        }
+
+        .step-number {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-color), #1e88e5);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0 auto 16px;
+            box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+        }
+
+        .step-icon {
+            font-size: 32px;
+            color: var(--primary-color);
+            margin-bottom: 12px;
+        }
+
+        .step-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--on-surface);
+            margin-bottom: 8px;
+        }
+
+        .step-description {
+            font-size: 14px;
+            color: var(--on-surface-variant);
+            line-height: 1.5;
+        }
+
+        /* Progress Stages */
+        .progress-stages {
+            margin: 24px 0;
+        }
+
+        .stage {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            background: var(--surface-variant);
+            transition: all 0.3s ease;
+        }
+
+        .stage.active {
+            background: rgba(25, 118, 210, 0.1);
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .stage.completed {
+            background: rgba(56, 142, 60, 0.1);
+            border-left: 3px solid var(--success-color);
+        }
+
+        .stage-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--outline-variant);
+            color: var(--on-surface-variant);
+            flex-shrink: 0;
+        }
+
+        .stage.active .stage-icon {
+            background: var(--primary-color);
+            color: white;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .stage.completed .stage-icon {
+            background: var(--success-color);
+            color: white;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.9; }
+        }
+
+        .stage-text {
+            flex: 1;
+        }
+
+        .stage-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--on-surface);
+        }
+
+        .stage-description {
+            font-size: 12px;
+            color: var(--on-surface-variant);
+            margin-top: 2px;
+        }
+
+        .stage.active .stage-title {
+            color: var(--primary-color);
+        }
+
+        .stage.completed .stage-title {
+            color: var(--success-color);
         }
     </style>
 </head>
@@ -515,15 +657,11 @@
                         <span class="material-icons">upload</span>
                         Choose File
                     </button>
-                    <div class="chip">
-                        <span class="material-icons">keyboard</span>
-                        Ctrl+V to paste
-                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Loading Status -->
+        <!-- Loading Status with Progress Stages -->
         <div class="status-card loading" id="loadingCard" style="display: none;">
             <div class="status-header">
                 <div class="status-icon">
@@ -531,7 +669,48 @@
                 </div>
                 <div class="status-title">Processing Image</div>
             </div>
-            <p>Extracting text and analyzing event details with AI...</p>
+            
+            <div class="progress-stages">
+                <div class="stage" id="stage1">
+                    <div class="stage-icon">
+                        <span class="material-icons" style="font-size: 18px;">image</span>
+                    </div>
+                    <div class="stage-text">
+                        <div class="stage-title">Uploading Screenshot</div>
+                        <div class="stage-description">Preparing image for processing</div>
+                    </div>
+                </div>
+                
+                <div class="stage" id="stage2">
+                    <div class="stage-icon">
+                        <span class="material-icons" style="font-size: 18px;">visibility</span>
+                    </div>
+                    <div class="stage-text">
+                        <div class="stage-title">Text Extraction</div>
+                        <div class="stage-description">Using Google Vision API to read text</div>
+                    </div>
+                </div>
+                
+                <div class="stage" id="stage3">
+                    <div class="stage-icon">
+                        <span class="material-icons" style="font-size: 18px;">psychology</span>
+                    </div>
+                    <div class="stage-text">
+                        <div class="stage-title">AI Enhancement</div>
+                        <div class="stage-description">Gemini AI parsing event details</div>
+                    </div>
+                </div>
+                
+                <div class="stage" id="stage4">
+                    <div class="stage-icon">
+                        <span class="material-icons" style="font-size: 18px;">link</span>
+                    </div>
+                    <div class="stage-text">
+                        <div class="stage-title">Calendar Link Generation</div>
+                        <div class="stage-description">Creating Google Calendar URL</div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Success Status -->
@@ -580,10 +759,39 @@
                 </button>
             </div>
         </div>
+
+        <!-- How It Works Section - Bottom Tips -->
+        <section class="how-it-works">
+            <h2 class="section-title">How It Works</h2>
+            <p class="section-subtitle">Simple, fast, and powered by AI</p>
+            
+            <div class="steps-container">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <span class="material-icons step-icon">screenshot</span>
+                    <div class="step-title">Upload Screenshot</div>
+                    <p class="step-description">Drop your event screenshot or paste from clipboard (Ctrl+V)</p>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <span class="material-icons step-icon">psychology</span>
+                    <div class="step-title">AI Processing</div>
+                    <p class="step-description">Google Vision extracts text, Gemini AI enhances details</p>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <span class="material-icons step-icon">event_available</span>
+                    <div class="step-title">Add to Calendar</div>
+                    <p class="step-description">One-click to add perfectly formatted event to Google Calendar</p>
+                </div>
+            </div>
+        </section>
     </main>
 
     <footer class="footer">
-        <p>Powered by Google Cloud Vision API and Gemini AI • Built with Firebase</p>
+        <p>Powered by Google Cloud Vision API and Gemini AI • Built with Firebase • Made by Enes Yilmaz</p>
     </footer>
 
     <script>
@@ -707,14 +915,52 @@
         function showLoading() {
             hideAllCards();
             loadingCard.style.display = 'block';
+            
+            // Scroll to loading card
+            setTimeout(() => scrollToSection(loadingCard), 100);
+            
+            // Reset all stages
+            document.querySelectorAll('.stage').forEach(stage => {
+                stage.classList.remove('active', 'completed');
+            });
+            
+            // Animate through stages
+            setTimeout(() => {
+                document.getElementById('stage1').classList.add('active');
+            }, 100);
+            
+            setTimeout(() => {
+                document.getElementById('stage1').classList.remove('active');
+                document.getElementById('stage1').classList.add('completed');
+                document.getElementById('stage2').classList.add('active');
+            }, 500);
+            
+            setTimeout(() => {
+                document.getElementById('stage2').classList.remove('active');
+                document.getElementById('stage2').classList.add('completed');
+                document.getElementById('stage3').classList.add('active');
+            }, 1200);
+            
+            setTimeout(() => {
+                document.getElementById('stage3').classList.remove('active');
+                document.getElementById('stage3').classList.add('completed');
+                document.getElementById('stage4').classList.add('active');
+            }, 2000);
         }
 
         function hideLoading() {
             loadingCard.style.display = 'none';
+            // Mark final stage as completed
+            document.getElementById('stage4')?.classList.remove('active');
+            document.getElementById('stage4')?.classList.add('completed');
         }
 
         function showResult(data) {
             hideAllCards();
+            successCard.style.display = 'block';
+            
+            // Scroll to success card
+            setTimeout(() => scrollToSection(successCard), 100);
             
             const event = data.event;
             
@@ -754,8 +1000,6 @@
             
             // Set calendar URL
             calendarBtn.href = data.calendar_url;
-            
-            successCard.style.display = 'block';
         }
 
         function showError(message) {
@@ -769,6 +1013,10 @@
             loadingCard.style.display = 'none';
             successCard.style.display = 'none';
             errorCard.style.display = 'none';
+        }
+
+        function scrollToSection(element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
         function escapeHtml(text) {
